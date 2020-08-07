@@ -34,6 +34,7 @@ final class PotentialMatch {
     private $isChild;
     private $parentAsin;
     private $childrenCount;
+    private $childrenList;
     /** @var LoggerInterface */
     protected $logger;
 
@@ -112,9 +113,8 @@ final class PotentialMatch {
                 }
             }
         }
-
+        
         if (!empty($attributes)) {
-
             $this->logMessage("Trying manual string based attribute search", LoggerService::DEBUG);
 
             if (!empty($attributes->ListPrice->Amount)) {
@@ -177,9 +177,24 @@ final class PotentialMatch {
             if (!empty($attributes->SmallImage)) {
                 $this->smallImage = $this->extractSmallImageFromAttributes($attributes);
             }
+            if (!empty($attributes->ProductTypeName)) {
+                $this->productTypeName = $attributes->ProductTypeName->__toString();
+            }
+            if (!empty($attributes->ProductGroup)) {
+                $this->productGroup = $attributes->ProductGroup->__toString();
+            }
+            if (!empty($attributes->Binding)) {
+                $this->binding = $attributes->Binding->__toString();
+            }
+            if (!empty($attributes->Color)) {
+                $this->color = $attributes->Color->__toString();
+            }
             if (!empty($attributes->IsAdultProduct)) {
                 $this->isAdultProduct = $attributes->IsAdultProduct->__toString();
             }
+
+
+
         } else {
             $this->logMessage("Trying XML based attribute search", LoggerService::DEBUG);
 
@@ -220,15 +235,27 @@ final class PotentialMatch {
             }
         }
         if (!empty($relationships)) {
+
+            $this->extractChildrenFromRelationship($relationships);
+
             $this->isVariation = true;
             if (isset($relationships->VariationChild)) {
                 $this->isParent = true;
+                $this->isChild = false;
                 $this->childrenCount = count($relationships->VariationChild);
+                $this->childrenList = $this->extractChildrenFromRelationship($relationships);
+
             }
             if (isset($relationships->VariationParent)) {
+                $this->isParent = false;
                 $this->isChild = true;
                 $this->parentAsin = $relationships->VariationParent->Identifiers->MarketplaceASIN->ASIN->__toString();
+                $this->childrenCount = 0;
             }
+        } else {
+            $this->isParent = false;
+            $this->isChild = false;
+            $this->isVariation = false;
         }
         if (!empty($potentialMatch)) {
             $potentialMatches[] = $potentialMatch;
@@ -464,6 +491,16 @@ final class PotentialMatch {
         }
         return $smallImage;
     }
+    private function extractChildrenFromRelationship($relationships) {
+        $children = [];
+        if (!empty($relationships)) {
+            foreach ($relationships as $child) {
+                $children[] = $child->Identifiers->MarketplaceASIN->ASIN->__toString();
+            }
+        }
+        sort($children);
+        return $children;
+    }
     // #################
     // # Basic getters #
     // #################
@@ -643,4 +680,39 @@ final class PotentialMatch {
     {
         return $this->childrenCount;
     }  
+    /**
+     * @return mixed
+     */
+    public function getProductTypeName()
+    {
+        return $this->productTypeName;
+    }  
+    /**
+     * @return mixed
+     */
+    public function getProductGroup()
+    {
+        return $this->productGroup;
+    }  
+    /**
+     * @return mixed
+     */
+    public function getBinding()
+    {
+        return $this->binding;
+    } 
+    /**
+     * @return mixed
+     */
+    public function getColor()
+    {
+        return $this->color;
+    }           
+    /**
+     * @return mixed
+     */
+    public function getChildrenList()
+    {
+        return $this->childrenList;
+    } 
 }
